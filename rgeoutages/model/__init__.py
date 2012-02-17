@@ -19,7 +19,7 @@ DeclarativeBase = declarative_base()
 
 # There are two convenient ways for you to spare some typing.
 # You can have a query property on all your model classes by doing this:
-# DeclarativeBase.query = DBSession.query_property()
+DeclarativeBase.query = DBSession.query_property()
 # Or you can use a session-aware mapper as it was used in TurboGears 1:
 # DeclarativeBase = declarative_base(mapper=DBSession.mapper)
 
@@ -59,3 +59,4 @@ def init_model(engine):
     #mapper(Reflected, t_reflected)
 
 # Import your model modules here.
+from rgeoutages.model.outage import Outage

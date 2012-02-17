@@ -29,7 +29,12 @@ install_requires=[
     "repoze.tm2 >= 1.0a5",
     "sqlalchemy",
     "sqlalchemy-migrate",
-    ]
+    "tw2.core",
+    "tw2.jquery",
+    "tw2.polymaps",
+    "tw2.jit",
+    "tgscheduler",
+    "BeautifulSoup"]
 
 if sys.version_info[:2] == (2,4):
     testpkgs.extend(['hashlib', 'pysqlite'])

@@ -1,0 +1,12 @@
+.svn
+*.swp
+*.pyc
+*.pyo
+*.swo
+*.db*
+.build
+*.egg-info
+dist
+build
+ez_setup
+data

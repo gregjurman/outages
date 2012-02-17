@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-
+import tgscheduler
+from rgeoutages.util import cron_jobs
 """The application's Globals object"""
 
 __all__ = ['Globals']
@@ -14,5 +15,10 @@ class Globals(object):
     """
 
     def __init__(self):
-        """Do nothing, by default."""
-        pass
+        """Start the TG Scheduler and add the scraper cron jobs"""
+
+        # Start scheduler
+        tgscheduler.start_scheduler()
+
+        # Add scraper cron job, every 10 minutes
+        # tgscheduler.scheduler.add_interval_task(self.sch_update_feeds, 600)

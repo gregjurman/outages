@@ -8,8 +8,26 @@ from rgeoutages.model import DBSession, metadata
 from rgeoutages.lib.base import BaseController
 from rgeoutages.controllers.error import ErrorController
 
+from tw2.polymaps import PolyMap, PollingPolyMap
+from tw2.polymaps.geojsonify import geojsonify
+
 __all__ = ['RootController']
 
+class RGEOutageMap(PollingPolyMap):
+    """
+    This is the polymap object that displays the current outages in the 
+    RG&E Service Area
+    """
+    id = "outage_map"
+    interval = 1000
+    layer_lifetime = 1100
+    interact = True
+    cloudmade_api_key = "1a1b06b230af4efdbb989ea99e9841af"
+    center_latlon = {'lat': 43.165556, 'lon' : -77.611389}
+    css_class = "outage_map"
+    zoom = 10
+
+    data_url = "/outages.json"
 
 class RootController(BaseController):
     """
@@ -31,20 +49,26 @@ class RootController(BaseController):
     @expose('rgeoutages.templates.index')
     def index(self):
         """Handle the front-page."""
-        return dict(page='index')
+        return dict(page='index', outage_map=RGEOutageMap())
 
-    @expose('rgeoutages.templates.about')
-    def about(self):
-        """Handle the 'about' page."""
-        return dict(page='about')
+    @expose()
+    def outages(self):
+        """Handle the current outages and return a JSON feed"""
+        import geojson
+        import random
 
-    @expose('rgeoutages.templates.environ')
-    def environ(self):
-        """This method showcases TG's access to the wsgi environment."""
-        return dict(environment=request.environ)
+        n = 40
+        lat, lon = 43.165556, -77.611389
+        mod = lambda x : x + random.random() * 0.05 - 0.025
 
-    @expose('rgeoutages.templates.data')
-    @expose('json')
-    def data(self, **kw):
-        """This method showcases how you can use the same controller for a data page and a display page"""
-        return dict(params=kw)
+        json = geojson.FeatureCollection(
+            features=[
+                geojson.Feature(
+                    geometry=geojson.Point([mod(lon), mod(lat)]),
+                    properties={'ATTR': "%s, %s" % (mod(lon), mod(lat))},
+                ) for i in range(n)
+
+            ]
+        )
+        return geojson.dumps(json)
+

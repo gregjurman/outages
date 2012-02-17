@@ -29,7 +29,13 @@ base_config.renderers.append('json')
 #Set the default renderer
 base_config.default_renderer = 'mako'
 base_config.renderers.append('mako')
+
 #Configure the base SQLALchemy Setup
 base_config.use_sqlalchemy = True
+
+#configure ToscaWidgets2
+base_config.use_toscawidgets = False
+base_config.use_toscawidgets2 = True
+
 base_config.model = rgeoutages.model
 base_config.DBSession = rgeoutages.model.DBSession

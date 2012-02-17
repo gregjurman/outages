@@ -2,15 +2,25 @@
 
 # Scrapes RG&E outage information.
 # Requires:
-#   python-pycurl
 #   python-beautifulsoup
+
+#
+# Written by Ryan Tucker
+# Source: https://github.com/rtucker/rgeoutages
+#
+
+#
+# ChangeLog:
+#   Greg Jurman (jurman.greg@gmail.com) 2/17/2012
+#       Converted pycurl to urllib2
+#
 
 import os
 import urllib2
 
 from BeautifulSoup import BeautifulSoup
 
-BASE_URL="http://gregjurman.github.com/"
+BASE_URL="http://www3.rge.com/OutageReports/"
 START_URL="RGE.html"
 
 try:

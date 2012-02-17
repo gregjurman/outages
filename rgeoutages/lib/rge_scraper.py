@@ -10,7 +10,7 @@ import urllib2
 
 from BeautifulSoup import BeautifulSoup
 
-BASE_URL="http://www3.rge.com/OutageReports/"
+BASE_URL="http://gregjurman.github.com/"
 START_URL="RGE.html"
 
 try:
@@ -22,14 +22,14 @@ except IOError:
 USERAGENT="rgeoutages/%s (http://hoopycat.com/rgeoutages/; version %s)" % (GIT_MODTIME, GIT_VERSION)
 
 def get_url(url):
-    c = urllib2.open(url)
+    print "Getting", url
+    c = urllib2.urlopen(url)
     
     return c
 
 def scrape_table(table):
     data = {}
     headings = []
-
     for row in table('tr'):
         if row.th:
             if len(row('th')) > 1 and str(row.th.string) != str('&nbsp;'):
@@ -100,6 +100,9 @@ def crawl_outages(base_url=BASE_URL, start_url=START_URL):
             }
 
     return outages
+
+def update_outages():
+    return crawl_outages(BASE_URL, START_URL)
 
 if __name__ == '__main__':
     structure = crawl_outages(BASE_URL, START_URL)

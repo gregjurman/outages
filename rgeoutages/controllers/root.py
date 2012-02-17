@@ -11,7 +11,23 @@ from rgeoutages.controllers.error import ErrorController
 from tw2.polymaps import PolyMap, PollingPolyMap
 from tw2.polymaps.geojsonify import geojsonify
 
+from tw2.protovis.custom import SparkBar
+
+import math
+import random
+
 __all__ = ['RootController']
+
+class RGEOutageChart(SparkBar):
+    id = "outage_chart"
+    p_width = 125
+    p_left = 0    
+    p_right = 0
+    p_top = 0
+    p_bottom = 0
+    p_height = 25
+    p_data = [1.0, 0.3, 0.6, 0.1, 0.9, 0.8, 0.23, 0.77, 0.63, 0.43, 0.59, 0.11,
+            1.0, 0.3, 0.6, 0.1, 0.9, 0.8, 0.23, 0.77, 0.63, 0.43, 0.59, 0.11]
 
 class RGEOutageMap(PollingPolyMap):
     """
@@ -19,13 +35,13 @@ class RGEOutageMap(PollingPolyMap):
     RG&E Service Area
     """
     id = "outage_map"
-    interval = 1000
-    layer_lifetime = 1100
+    interval = 60000
+    layer_lifetime = 60100
     interact = True
     cloudmade_api_key = "1a1b06b230af4efdbb989ea99e9841af"
     center_latlon = {'lat': 43.165556, 'lon' : -77.611389}
     css_class = "outage_map"
-    zoom = 10
+    zoom = 11
 
     data_url = "/outages.json"
 
@@ -49,13 +65,14 @@ class RootController(BaseController):
     @expose('rgeoutages.templates.index')
     def index(self):
         """Handle the front-page."""
-        return dict(page='index', outage_map=RGEOutageMap())
+        return dict(page='index',
+            outage_map=RGEOutageMap(),
+            outage_chart=RGEOutageChart())
 
     @expose()
     def outages(self):
         """Handle the current outages and return a JSON feed"""
         import geojson
-        import random
 
         n = 40
         lat, lon = 43.165556, -77.611389

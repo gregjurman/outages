@@ -59,4 +59,4 @@ def init_model(engine):
     #mapper(Reflected, t_reflected)
 
 # Import your model modules here.
-from rgeoutages.model.outage import Outage
+from rgeoutages.model.outage import *

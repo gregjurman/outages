@@ -11,24 +11,32 @@
 <div id="main" class="stats grid_10 prefix_1 suffix_1" role="main">
 	${outage_map.display() | n}
 </div>
-<div class="grid_6 prefix_1">
-	<div class="container_12">
-		<div id="outage_stats_head" class="stats grid_6" role="stats">
-			<h2>Current Outages</h2>
-		</div>
-		<div id="affected_stats_head" class="stats grid_6" role="stats">
-			<h2>Affected Customers</h2>
-		</div>
-
-		<div id="outage_stats" class="stats grid_6" role="stats">
-			<h3>21</h3>
-		</div>
-		<div id="affected_stats" class="stats grid_6" role="stats">
-			<h3>200</h3>
+<div class="grid_5 prefix_1">
+	<div id="outage_stat" class="stats lfloat">
+		<span class="num">23</span>
+	</div>
+	<div id="outage_head_spark" class="lfloat head_spark stats">
+		<div id="outage_stats_head">
+			<div>
+				<span class="head">Current Outages</span>
+			</div>
+				${outage_chart.display() | n}
 		</div>
 	</div>
 </div>
 
-<div class="grid_4 suffix_1">
-<h1>Herp, sparkline</h1>
+<div class="grid_5 suffix_1">
+	<div id="outage_head_spark" class="head_spark stats ifloat">
+		<div id="outage_stats_head">
+			<div>
+				<span class="head">Affected Customers</span>
+			</div>
+				${outage_chart.display() | n}
+		</div>
+	</div>
+	<div id="outage_stat" class="stats ifloat">
+		<span class="num">2300</span>
+	</div>
 </div>
+
+<div class="grid_12">&nbsp;</div>

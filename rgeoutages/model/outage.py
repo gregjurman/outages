@@ -38,7 +38,7 @@ class Street(DeclarativeBase):
     town = relation('Town', backref="streets")
 
     lat = Column(String)
-    long = Column(String)
+    lng = Column(String)
 
     total_customers = Column(Integer)
 

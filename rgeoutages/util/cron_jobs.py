@@ -85,7 +85,7 @@ def scrape_outages():
                     # get the lat, long
                     lat, lng = get_lat_long('NY', t_name, s_name)
                     street.lat = lat
-                    street.long = lng
+                    street.lng = lng
                     DBSession.add(street)
                     DBSession.flush()
                     transaction.commit()

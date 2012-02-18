@@ -12,7 +12,7 @@ from datetime import datetime
 
 import sqlamp
 
-__all__ = ['Outage', 'Street', 'County', 'Town', 'Utility']
+__all__ = ['Outage', 'LocationNode', 'Utility']
 
 class Utility(DeclarativeBase):
     __tablename__ = 'utilities'
@@ -23,7 +23,6 @@ class Utility(DeclarativeBase):
 
     name = Column(Unicode, nullable=False)
 
-__all__ = ['Outage', 'Street', 'County', 'Town']
 
 class Outage(DeclarativeBase):
     __tablename__ = 'outages'
@@ -39,13 +38,17 @@ class Outage(DeclarativeBase):
     
     affected_customers = Column(Integer, nullable=False)
 
+    utility_id = Column(Integer, ForeignKey('utilities.id'))
+    utility = relation('Utility', backref='outages')
+
+
 class LocationNode(DeclarativeBase):
     __tablename__ = 'locations'
     __mp_manager__ = 'mp'
 
     id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, ForeignKey('node.id'))
-    parent = relation("Node", remote_side=[id])
+    parent_id = Column(Integer, ForeignKey('locations.id'))
+    parent = relation("LocationNode", remote_side=[id])
     name = Column(String, nullable=False)
     total_customers = Column(Integer)
 
@@ -57,43 +60,3 @@ class LocationNode(DeclarativeBase):
         self.parent = parent
     def __repr__(self):
         return '<Node %r>' % self.name
-
-
-class Street(DeclarativeBase):
-    __tablename__ = 'streets'
-    
-    #{ Columns
-    
-    id = Column(Integer, primary_key=True)
-    
-    street_name = Column(Unicode, nullable=False)
-    town_id = Column(Integer, ForeignKey('towns.id'))
-    town = relation('Town', backref="streets")
-
-    lat = Column(String)
-    lng = Column(String)
-
-    total_customers = Column(Integer)
-
-class Town(DeclarativeBase):
-    __tablename__ = 'towns'
-
-    id = Column(Integer, primary_key=True)
-
-    town_name = Column(Unicode, nullable=False)
-    county_id = Column(Integer, ForeignKey('counties.id'))
-    county = relation('County', backref="towns")
-
-    utility_id = Column(Integer, ForeignKey('utilities.id'))
-    utility = relation('Utility', backref='towns')
-
-    total_customers = Column(Integer)
-
-class County(DeclarativeBase):
-    __tablename__ = 'counties'
-
-    id = Column(Integer, primary_key=True)
-
-    county_name = Column(Unicode, nullable=False)
-    
-    total_customers = Column(Integer)

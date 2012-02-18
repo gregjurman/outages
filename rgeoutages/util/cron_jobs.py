@@ -1,5 +1,5 @@
 from rgeoutages.lib import rge_scraper
-from rgeoutages.model import Outage, Street, Town, County, DBSession
+from rgeoutages.model import Outage, Street, Town, County, Utility, DBSession
 import transaction
 from urllib import quote_plus as _q
 import urllib2
@@ -15,12 +15,50 @@ def get_lat_long(state='NY', town=None, street=None):
 
     return lat_long['lat'], lat_long['lng']
 
+BASE_URL="http://www3.rge.com/OutageReports/"
+START_URL="RGE.html"
 def scrape_outages():
-    outages = rge_scraper.update_outages()
+    services = [
+            {'key': 'test',
+            'name':'Test RGE',
+            'base':'http://gregjurman.github.com/', 
+            'start':'RGE.html'},
+            {'key': 'rge',
+            'name':'Rochester Gas & Electric',
+            'base':'http://www3.rge.com/OutageReports/', 
+            'start':'RGE.html'},
+            #{'key': 'nyseg',
+            #'name': 'New York State Electric & Gas',
+            #'base': 'http://www3.nyseg.com/OutageReports/',
+            #'start':'NYSEG.html'}
+        ]
+
+    for v in services:
+        scrape_outages_url(v)
+
+
+def scrape_outages_url(service):
+    outages = rge_scraper.update_outages(service['base'], service['start'])
+    
+    # Get the utility entry, else create one if it's missing
+    utility = None
+    utility_query = Utility.query.filter(Utility.key==service['key'])
+    if utility_query.count():
+        utility = utility_query.one()
+    else:
+        # Doesn't exist, add new utility
+        utility = Utility()
+        utility.key = service['key']
+        utility.name = service['name']
+        DBSession.add(utility)
+        DBSession.flush()
+        transaction.commit()
+
 
     # Clear old outages
     for o_obj in Outage.query.all():
-        DBSession.delete(o_obj)
+        if o_obj.street.town.utility is utility:
+            DBSession.delete(o_obj)
 
     transaction.commit()
 
@@ -32,7 +70,6 @@ def scrape_outages():
         if county_query.count():
             # Already exists just update the key
             county_query.update({County.total_customers : tot_cust})
-            transaction.commit()
             
             county = county_query.one()
         else:
@@ -42,7 +79,6 @@ def scrape_outages():
             county.total_customers = tot_cust
             DBSession.add(county)
             DBSession.flush()
-            transaction.commit()
 
         # Do towns
         for t_name, t_data in c_data['Towns'].iteritems():
@@ -52,18 +88,17 @@ def scrape_outages():
             if town_query.count():
                 # Already exists just update the key
                 town_query.update({Town.total_customers : town_cust})
-                transaction.commit()
 
                 town = town_query.one()
             else:
                 # Doesn't exist, add new town
                 town = Town()
+                town.utility = utility
                 town.town_name = t_name
                 town.total_customers = town_cust
                 town.county = county
                 DBSession.add(town)
                 DBSession.flush()
-                transaction.commit()
 
             # Do streets
             for s_name, s_data in t_data['Streets'].iteritems():
@@ -73,7 +108,6 @@ def scrape_outages():
                 if street_query.count():
                     # Already exists just update the key
                     street_query.update({Street.total_customers : street_cust})
-                    transaction.commit()
 
                     street = street_query.one()
                 else:
@@ -88,7 +122,6 @@ def scrape_outages():
                     street.lng = lng
                     DBSession.add(street)
                     DBSession.flush()
-                    transaction.commit()
 
                 # Create new outage
                 outage = Outage()
@@ -98,4 +131,4 @@ def scrape_outages():
                 DBSession.add(outage)
                 DBSession.flush()
                 
-                transaction.commit()
+    transaction.commit()

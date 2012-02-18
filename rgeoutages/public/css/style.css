@@ -323,10 +323,24 @@ svg {
     height: 400px;
 }
 
-.layer circle {
-  fill: lawngreen;
+.layer circle.rge {
+  fill: #F62817;
   fill-opacity: .5;
-  stroke: green;
+  stroke: red;
+  vector-effect: non-scaling-stroke;
+}
+
+.layer circle.nyseg {
+  fill: #FFD700;
+  fill-opacity: .5;
+  stroke: yellow;
+  vector-effect: non-scaling-stroke;
+}
+
+.layer circle.test {
+  fill: #FFFFFF;
+  fill-opacity: .5;
+  stroke: black;
   vector-effect: non-scaling-stroke;
 }
 

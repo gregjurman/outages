@@ -20,17 +20,6 @@ import urllib2
 
 from BeautifulSoup import BeautifulSoup
 
-BASE_URL="http://www3.rge.com/OutageReports/"
-START_URL="RGE.html"
-
-try:
-    GIT_VERSION = open('.git/refs/heads/master','r').read().strip()
-    GIT_MODTIME = os.stat('.git/refs/heads/master').st_mtime
-except IOError:
-    GIT_MODTIME = GIT_VERSION = "dev"
-
-USERAGENT="rgeoutages/%s (http://hoopycat.com/rgeoutages/; version %s)" % (GIT_MODTIME, GIT_VERSION)
-
 def get_url(url):
     print "Getting", url
     c = urllib2.urlopen(url)
@@ -62,7 +51,7 @@ def scrape_table(table):
 def get_soup(url):    
     return BeautifulSoup(get_url(url))
 
-def crawl_outages(base_url=BASE_URL, start_url=START_URL):
+def crawl_outages(base_url, start_url):
     outages = {}
 
     # Get bunch of counties
@@ -111,8 +100,8 @@ def crawl_outages(base_url=BASE_URL, start_url=START_URL):
 
     return outages
 
-def update_outages():
-    return crawl_outages(BASE_URL, START_URL)
+def update_outages(base, start):
+    return crawl_outages(base, start)
 
 if __name__ == '__main__':
     structure = crawl_outages(BASE_URL, START_URL)

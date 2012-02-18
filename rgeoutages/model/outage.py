@@ -10,6 +10,8 @@ from sqlalchemy.types import String, Integer, Unicode, DateTime, Boolean
 from rgeoutages.model import DeclarativeBase, metadata, DBSession
 from datetime import datetime
 
+import sqlamp
+
 __all__ = ['Outage', 'Street', 'County', 'Town', 'Utility']
 
 class Utility(DeclarativeBase):
@@ -21,20 +23,41 @@ class Utility(DeclarativeBase):
 
     name = Column(Unicode, nullable=False)
 
+__all__ = ['Outage', 'Street', 'County', 'Town']
 
 class Outage(DeclarativeBase):
     __tablename__ = 'outages'
 
     id = Column(Integer, primary_key=True)
 
-    street_id = Column(Integer, ForeignKey('streets.id'))
-    street = relation('Street', backref='outages')
+    location_id = Column(Integer, ForeignKey('locations.id'))
+    location = relation('LocationNode', backref='outages')
 
     start_time = Column(DateTime, default=(lambda: datetime.now()))
     proposed_end_time = Column(DateTime)
     end_time = Column(DateTime)
     
     affected_customers = Column(Integer, nullable=False)
+
+class LocationNode(DeclarativeBase):
+    __tablename__ = 'locations'
+    __mp_manager__ = 'mp'
+
+    id = Column(Integer, primary_key=True)
+    parent_id = Column(Integer, ForeignKey('node.id'))
+    parent = relation("Node", remote_side=[id])
+    name = Column(String, nullable=False)
+    total_customers = Column(Integer)
+
+    lat = Column(String)
+    lng = Column(String)
+
+    def __init__(self, name, parent=None):
+        self.name = name
+        self.parent = parent
+    def __repr__(self):
+        return '<Node %r>' % self.name
+
 
 class Street(DeclarativeBase):
     __tablename__ = 'streets'

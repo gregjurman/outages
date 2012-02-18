@@ -52,11 +52,12 @@ class LocationNode(DeclarativeBase):
     name = Column(String, nullable=False)
     total_customers = Column(Integer)
 
+    location_level = Column(String, nullable=False)
+
+    update_time = Column(DateTime)
+
     lat = Column(String)
     lng = Column(String)
 
-    def __init__(self, name, parent=None):
-        self.name = name
-        self.parent = parent
     def __repr__(self):
-        return '<Node %r>' % self.name
+        return '<Location %r>' % self.name

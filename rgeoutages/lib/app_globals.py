@@ -21,7 +21,7 @@ class Globals(object):
         tgscheduler.start_scheduler()
 
         # Add scraper cron job, every 10 minutes
-        tgscheduler.scheduler.add_interval_task(self.sch_update_outages, 600)
+        tgscheduler.scheduler.add_interval_task(self.sch_update_outages, 600, initialdelay=15)
 
     def sch_update_outages(self):
         cron_jobs.scrape_outages()

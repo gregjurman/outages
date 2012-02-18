@@ -4,9 +4,6 @@ from datetime import datetime
 from urlparse import urljoin
 import json
 
-#from rgeoutages.models import LocationNode, Outage, Utility, DBSession
-#import transaction
-
 class Outage(object):
     affected_customers = None
     proposed_end_time = None
@@ -26,19 +23,18 @@ class Outage(object):
 class Location(object):
     location_level = None
     locations = None
-    outages = None
+    outage = None
     update_time = None
     total_customers = None
     name = None
 
     def __init__(self):
         self.locations = []
-        self.outages = []
         self.location_level = None
 
     def __str__(self):
-        return "Location: name=%s, level=%s, total_outages=%s, total_children=%s, last_updated=%s" % (
-            self.name, self.location_level, len(self.outages), len(self.locations), self.update_time)
+        return "Location: name=%s, level=%s, outage=%s, total_children=%s, last_updated=%s" % (
+            self.name, self.location_level, self.outage, len(self.locations), self.update_time)
 
     def __repr__(self):
         return str(self)
@@ -52,8 +48,8 @@ class Location(object):
 
         if self.locations:
             me['locations'] = self.locations
-        if self.outages:
-            me['outages'] = self.outages
+        if self.outage:
+            me['outage'] = self.outage
 
         return me
 
@@ -64,7 +60,6 @@ class OmniScraper(object):
 
     def start(self):
         root_loc = Location()
-        root_loc.location_level = 'Root'
 
         start_url = "%s/%s" % (self.base_url, self.start_page)
 
@@ -120,7 +115,7 @@ class OmniScraper(object):
                 outage.affected_customers = out_customers
                 outage.proposed_end_time = datetime.strptime(cells[3].string, "%b %d, %Y %I:%M %p")
 
-                loc.outages.append(outage)
+                loc.outage = outage
 
     def get_metadata(self, table):
         # Start extracting data
@@ -131,8 +126,6 @@ class OmniScraper(object):
 
 
     def get_soup(self, url):
-        print "Getting URL:", url
-
         data = urllib2.urlopen(url)
         return BeautifulSoup(data)
 
@@ -169,6 +162,9 @@ class OmniScraper(object):
 
         loc_level = header_row.contents[0].string
 
+        if not loc_level:
+            loc_level = header_row.contents[0].contents[0].string
+
         return loc_level
 
 
@@ -181,5 +177,5 @@ def serializer(obj):
 if __name__ == "__main__":
     test_scraper = OmniScraper('http://gregjurman.github.com', 'NYSEG.html')
     root_obj = test_scraper.start()
-
+    
     print json.dumps(root_obj, default=serializer)

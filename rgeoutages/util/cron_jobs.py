@@ -63,21 +63,24 @@ def get_location_qualifier(raw):
     # Bah, no qualifier found, just use the lower-case
     return raw.lower()
 
+def build_geo_chain(loc_node):
+    i = 1
+    chain = []
+    chain.append(loc_node.name)
+    p = loc_node.parent
+    while p and i < len(LOCATION_CHAIN):
+        if p.location_level == LOCATION_CHAIN[i]:
+            chain.append(p.name)
+            i = i + 1
+        p = p.parent
+
+    return chain
+
 def update_geo_locations():
     # Process the Location
     for obj in LocationNode.query.filter(LocationNode.location_level==LOCATION_CHAIN[0]):
         if obj.lat is None and obj.lng is None:
-            i = 1
-            # Build the location chain
-            chain = []
-            chain.append(obj.name)
-            p = obj.parent
-            while p and i < len(LOCATION_CHAIN):
-                if p.location_level == LOCATION_CHAIN[i]:
-                    chain.append(p.name)
-                    i = i + 1
-                p = p.parent
-
+            chain = build_geo_chain(obj)
             # Get a lat/lng from Google
             lat, lng = get_lat_long(', '.join(chain))
 

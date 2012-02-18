@@ -8,6 +8,8 @@ from rgeoutages.model import DBSession, metadata, Outage
 from rgeoutages.lib.base import BaseController
 from rgeoutages.controllers.error import ErrorController
 
+from rgeoutages.util.cron_jobs import build_geo_chain
+
 from tw2.polymaps import PolyMap, PollingPolyMap
 from tw2.polymaps.geojsonify import geojsonify
 
@@ -87,15 +89,11 @@ class RootController(BaseController):
 
         features = []
         for outage in Outage.query.all():
-            features.append(
-                geojson.Feature(
-                    geometry=geojson.Point([float(outage.street.lng), float(outage.street.lat)]),
-                    properties={'CLASS': str(outage.street.town.utility.key),
-                        'ATTR': "%s, %s, %s County, NY" % (
-                        outage.street.street_name,
-                        outage.street.town.town_name,
-                        outage.street.town.county.county_name)}))
-            
+            if outage.location.lng is not None:
+                features.append(geojson.Feature(
+                        geometry=geojson.Point([float(outage.location.lng), float(outage.location.lat)]),
+                        properties={'CLASS': str(outage.utility.key),
+                            'ATTR': ", ".join(build_geo_chain(outage.location))}))
 
         json = geojson.FeatureCollection(features=features)
 

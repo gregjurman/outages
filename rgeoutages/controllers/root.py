@@ -42,8 +42,8 @@ class RGEOutageMap(PollingPolyMap):
 
     data_url = "/outages.json"
     properties_callback = """function (_layer) {
-        _layer.on("load", org.polymaps.stylist()
-        .title(function(d) { return "Lon/lat: " + d.properties.ATTR }));
+        _layer.on("load", org.polymaps.stylist().attr('class', function(d){return ""+d.properties.CLASS})
+        .title(function(d) { return ""+d.properties.ATTR }));
         return _layer
     }"""
 
@@ -90,7 +90,8 @@ class RootController(BaseController):
             features.append(
                 geojson.Feature(
                     geometry=geojson.Point([float(outage.street.lng), float(outage.street.lat)]),
-                    properties={'ATTR': "%s, %s, %s County, NY" % (
+                    properties={'CLASS': str(outage.street.town.utility.key),
+                        'ATTR': "%s, %s, %s County, NY" % (
                         outage.street.street_name,
                         outage.street.town.town_name,
                         outage.street.town.county.county_name)}))

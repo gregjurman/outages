@@ -10,7 +10,17 @@ from sqlalchemy.types import String, Integer, Unicode, DateTime, Boolean
 from rgeoutages.model import DeclarativeBase, metadata, DBSession
 from datetime import datetime
 
-__all__ = ['Outage', 'Street', 'County', 'Town']
+__all__ = ['Outage', 'Street', 'County', 'Town', 'Utility']
+
+class Utility(DeclarativeBase):
+    __tablename__ = 'utilities'
+    
+    id = Column(Integer, primary_key=True)
+
+    key = Column(String, nullable=False, unique=True)
+
+    name = Column(Unicode, nullable=False)
+
 
 class Outage(DeclarativeBase):
     __tablename__ = 'outages'
@@ -50,6 +60,9 @@ class Town(DeclarativeBase):
     town_name = Column(Unicode, nullable=False)
     county_id = Column(Integer, ForeignKey('counties.id'))
     county = relation('County', backref="towns")
+
+    utility_id = Column(Integer, ForeignKey('utilities.id'))
+    utility = relation('Utility', backref='towns')
 
     total_customers = Column(Integer)
 

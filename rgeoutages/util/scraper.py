@@ -73,6 +73,9 @@ class OmniScraper(object):
 
         update_time, location_level = self.get_metadata(table)
 
+        if location_level is None:
+            return
+    
         first_data_row = None        
         # get all rows that have no attributes on them
         for row in table.findAll(lambda tag : tag.name == 'tr' and not tag.attrs):
@@ -158,6 +161,9 @@ class OmniScraper(object):
             break
 
         # Get one row previous to that, which is the header row
+        if first_data_row is None:
+            return None
+
         header_row = first_data_row.findPreviousSiblings('tr', limit=1)[0]
 
         loc_level = header_row.contents[0].string

@@ -34,7 +34,8 @@ install_requires=[
     "tw2.polymaps",
     "tw2.protovis.custom",
     "tgscheduler",
-    "BeautifulSoup",]
+    "BeautifulSoup",
+    'sqlamp']
 
 if sys.version_info[:2] == (2,4):
     testpkgs.extend(['hashlib', 'pysqlite'])

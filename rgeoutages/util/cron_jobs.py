@@ -1,31 +1,47 @@
-from rgeoutages.lib import rge_scraper
-from rgeoutages.model import Outage, Street, Town, County, Utility, DBSession
+from rgeoutages.model import Outage, LocationNode, Utility, DBSession
 import transaction
 from urllib import quote_plus as _q
 import urllib2
 import json
 from datetime import datetime
+from sqlalchemy import and_
 
-def get_lat_long(state='NY', town=None, street=None):
-    query_string = _q("%s, %s, %s" % (street, town, state))
+import re
+
+from rgeoutages.util.scraper import OmniScraper
+
+LOCATION_QUALIFIERS = {
+    'state' : r'state',
+    'town' : r'town([^\w]|$)',
+    'county' : r'county',
+    'street': r'street'}
+
+LOCATION_CHAIN = ['street', 'town', 'state']
+
+
+def get_lat_long(raw):
+    query_string = _q(raw)
     uri = "http://maps.googleapis.com/maps/api/geocode/json?address=%s&sensor=false" % query_string
     obj = urllib2.urlopen(uri)
     json_data = json.load(obj)
-    lat_long = json_data['results'][0]['geometry']['location']
+    try:
+        lat_long = json_data['results'][0]['geometry']['location']
+    except:
+        return None, None
 
     return lat_long['lat'], lat_long['lng']
 
-BASE_URL="http://www3.rge.com/OutageReports/"
-START_URL="RGE.html"
 def scrape_outages():
-    services = [
-            {'key': 'test',
-            'name':'Test RGE',
-            'base':'http://gregjurman.github.com/', 
-            'start':'RGE.html'},
+    omni_services = [
+            {'key': 'nyseg',
+            'name':'Test NYSEG',
+            'state' : 'NY',
+            'base':'http://gregjurman.github.com', 
+            'start':'NYSEG.html'},
             {'key': 'rge',
             'name':'Rochester Gas & Electric',
-            'base':'http://www3.rge.com/OutageReports/', 
+            'state': 'NY',
+            'base':'http://gregjurman.github.com', 
             'start':'RGE.html'},
             #{'key': 'nyseg',
             #'name': 'New York State Electric & Gas',
@@ -33,13 +49,48 @@ def scrape_outages():
             #'start':'NYSEG.html'}
         ]
 
-    for v in services:
-        scrape_outages_url(v)
+    for omni_utility in omni_services:
+        scrape_omni_outages_url(omni_utility)
 
+    update_geo_locations()
 
-def scrape_outages_url(service):
-    outages = rge_scraper.update_outages(service['base'], service['start'])
-    
+def get_location_qualifier(raw):
+    raw = raw.lower()
+    for qualifier, test in LOCATION_QUALIFIERS.iteritems():
+        if re.search(test, raw):
+            return qualifier
+
+    # Bah, no qualifier found, just use the lower-case
+    return raw.lower()
+
+def update_geo_locations():
+    # Process the Location
+    for obj in LocationNode.query.filter(LocationNode.location_level==LOCATION_CHAIN[0]):
+        if obj.lat is None and obj.lng is None:
+            i = 1
+            # Build the location chain
+            chain = []
+            chain.append(obj.name)
+            p = obj.parent
+            while p and i < len(LOCATION_CHAIN):
+                if p.location_level == LOCATION_CHAIN[i]:
+                    chain.append(p.name)
+                    i = i + 1
+                p = p.parent
+
+            # Get a lat/lng from Google
+            lat, lng = get_lat_long(', '.join(chain))
+
+            # Update object
+            if lat is not None and lng is not None:
+                obj.lat = str(lat)
+                obj.lng = str(lng)
+
+    DBSession.flush()
+    transaction.commit()
+
+def scrape_omni_outages_url(service):
+    #TODO: Pull this out to generic it
     # Get the utility entry, else create one if it's missing
     utility = None
     utility_query = Utility.query.filter(Utility.key==service['key'])
@@ -52,83 +103,68 @@ def scrape_outages_url(service):
         utility.name = service['name']
         DBSession.add(utility)
         DBSession.flush()
-        transaction.commit()
 
 
-    # Clear old outages
+    # Clear all outages
     for o_obj in Outage.query.all():
-        if o_obj.street.town.utility is utility:
+        if o_obj.utility is utility:
             DBSession.delete(o_obj)
 
-    transaction.commit()
+    # Get data from Omni
+    scraper = OmniScraper(service['base'], service['start'])
 
-    # Crawl counties
-    for c_name, c_data in outages.iteritems():
-        county = None
-        tot_cust = int(c_data['TotalCustomers'].replace(',', ''))
-        county_query = County.query.filter(County.county_name==c_name)
-        if county_query.count():
-            # Already exists just update the key
-            county_query.update({County.total_customers : tot_cust})
-            
-            county = county_query.one()
-        else:
-            # Doesn't exist, add new county
-            county = County()
-            county.county_name = c_name
-            county.total_customers = tot_cust
-            DBSession.add(county)
+    outage_data = scraper.start()
+    
+    # Setup the root Location as the State
+    outage_data.name = service['state']
+    outage_data.location_level = 'state'
+    
+    tot_custs = 0
+    for child in outage_data.locations:
+        if not outage_data.update_time:
+            outage_data.update_time = child.update_time
+        tot_custs = tot_custs + child.total_customers
+    
+    outage_data.total_customers = tot_custs
+
+    populate_database(outage_data, utility)
+
+
+def populate_database(data, utility):
+    root_obj = LocationNode.query.filter(LocationNode.id==0).one()
+    populate(data, root_obj, utility)
+
+
+def populate(data, parent, utility):
+    loc_qual = get_location_qualifier(data.location_level)
+    loc_filter = LocationNode.query.filter(and_(
+        LocationNode.name==data.name,
+        LocationNode.location_level==loc_qual))
+
+    if loc_filter.count():
+        #Object exists, lets grab it
+        loc = loc_filter.one()
+    else:
+        loc = LocationNode()
+        loc.name = data.name
+        loc.parent = parent
+        loc.location_level = loc_qual
+        loc.total_customers = data.total_customers
+        loc.update_time = data.update_time
+        DBSession.add(loc)
+        DBSession.flush()
+
+    for child_loc in data.locations:
+        populate(child_loc, loc, utility)
+
+    if data.outage:
+        if not loc.outages:
+            outage = Outage()
+            outage.location = loc
+            outage.utility = utility
+            outage.affected_customers = data.outage.affected_customers
+            outage.proposed_end_time = data.outage.proposed_end_time
+            DBSession.add(outage)
             DBSession.flush()
 
-        # Do towns
-        for t_name, t_data in c_data['Towns'].iteritems():
-            town = None
-            town_cust = int(t_data['TotalCustomers'].replace(',', ''))
-            town_query = Town.query.filter(Town.town_name==t_name)
-            if town_query.count():
-                # Already exists just update the key
-                town_query.update({Town.total_customers : town_cust})
-
-                town = town_query.one()
-            else:
-                # Doesn't exist, add new town
-                town = Town()
-                town.utility = utility
-                town.town_name = t_name
-                town.total_customers = town_cust
-                town.county = county
-                DBSession.add(town)
-                DBSession.flush()
-
-            # Do streets
-            for s_name, s_data in t_data['Streets'].iteritems():
-                street = None
-                street_cust = int(s_data['TotalCustomers'].replace(',', ''))
-                street_query = Street.query.filter(Street.street_name==s_name)
-                if street_query.count():
-                    # Already exists just update the key
-                    street_query.update({Street.total_customers : street_cust})
-
-                    street = street_query.one()
-                else:
-                    # Doesn't exist, add new street
-                    street = Street()
-                    street.street_name = s_name
-                    street.total_customers = street_cust
-                    street.town = town
-                    # get the lat, long
-                    lat, lng = get_lat_long('NY', t_name, s_name)
-                    street.lat = lat
-                    street.lng = lng
-                    DBSession.add(street)
-                    DBSession.flush()
-
-                # Create new outage
-                outage = Outage()
-                outage.street = street
-                outage.proposed_end_time = datetime.strptime(s_data['EstimatedRestoration'], "%b %d, %Y %I:%M %p")
-                outage.affected_customers = int(s_data['CustomersWithoutPower'].replace(',', ''))
-                DBSession.add(outage)
-                DBSession.flush()
-                
     transaction.commit()

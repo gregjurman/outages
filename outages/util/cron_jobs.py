@@ -8,7 +8,7 @@ from sqlalchemy import and_
 
 import re
 
-from outages.util.scraper import OmniScraper
+from outages.scrapers import OmniScraper, Location
 
 LOCATION_QUALIFIERS = {
     'state' : r'state',
@@ -36,13 +36,11 @@ def scrape_outages():
             {'key': 'nyseg',
             'name':'Test NYSEG',
             'state' : 'NY',
-            'base':'http://gregjurman.github.com', 
-            'start':'NYSEG.html'},
+            'base':'http://gregjurman.github.com/NYSEG.html'},
             {'key': 'rge',
             'name':'Rochester Gas & Electric',
             'state': 'NY',
-            'base':'http://gregjurman.github.com', 
-            'start':'RGE.html'},
+            'base':'http://gregjurman.github.com/RGE.html'},
             #{'key': 'nyseg',
             #'name': 'New York State Electric & Gas',
             #'base': 'http://www3.nyseg.com/OutageReports/',
@@ -114,9 +112,9 @@ def scrape_omni_outages_url(service):
             DBSession.delete(o_obj)
 
     # Get data from Omni
-    scraper = OmniScraper(service['base'], service['start'])
+    scraper = OmniScraper(service['base'])
 
-    outage_data = scraper.start()
+    outage_data = scraper.start(service['base'])
     
     # Setup the root Location as the State
     outage_data.name = service['state']

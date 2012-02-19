@@ -8,10 +8,14 @@ from posixpath import join
 
 from outages.scrapers import Scraper, Location, Outage
 
+import re
+
 LOCATION_LEVELS = ['state', 'county', 'town']
 
 class NationalGridScraper(Scraper):
     update_time = None
+    name_regex = re.compile(r'([\w\s\d]+)(?:\([\w]+\)){0,1}')
+    etr = None
 
     def __init__(self):
         pass
@@ -23,6 +27,7 @@ class NationalGridScraper(Scraper):
 
         if not self.update_time:
             self.update_time = self.get_update_time(root)
+            self.etr = self.get_etr(root, "//curr_custs_aff/areas/area")
 
         loc_tree = self.scrape_recurse(root, "//curr_custs_aff/areas/area", parent)
 
@@ -41,9 +46,24 @@ class NationalGridScraper(Scraper):
             parent.locations.append(loc)
 
         if len(soup.xpath(join(xpath, 'areas'))):
-            for i in xrange(1, len(soup.xpath(join(xpath, 'areas'))) + 1):
+            # This is a location with more children
+            for i in xrange(1, len(soup.xpath(join(xpath, 'areas', 'area'))) + 1):
                 self.scrape_recurse(soup, join(xpath, 'areas', 'area[%s]' % i),
                     loc, level + 1)
+
+        else:
+            # This is a area that may have an outage
+            out_custs = self.get_out_customers(soup, xpath)
+            if out_custs:
+                outage = Outage()
+                outage.affected_customers = out_custs
+                etr = self.get_etr(soup, xpath)
+                if etr:
+                    outage.proposed_end_time = etr
+                else:
+                    outage.proposed_end_time = self.etr
+
+                loc.outage = outage
 
         return loc
 
@@ -52,10 +72,14 @@ class NationalGridScraper(Scraper):
         return etree.parse(c)
 
     def get_area_name(self, soup, xpath):
-        return soup.xpath(join(xpath, 'area_name', "text()"))[0]
+        raw_name = soup.xpath(join(xpath, 'area_name', "text()"))[0]
+        return self.name_regex.match(raw_name).groups()[0].strip()
 
     def get_total_customers(self, soup, xpath):
         return int(soup.xpath(join(xpath, 'total_custs', 'text()'))[0].replace(',',''))
+
+    def get_out_customers(self, soup, xpath):
+        return int(soup.xpath(join(xpath, 'custs_out', 'text()'))[0].replace(',',''))
 
     def get_update_time(self, soup):
         raw_date = soup.xpath(join("/root/date_generated", "text()"))
@@ -68,6 +92,18 @@ class NationalGridScraper(Scraper):
             d = datetime.now()
 
         return d
+
+    def get_etr(self, soup, xpath):
+        d = None
+        raw = soup.xpath(join(xpath, "etr", "text()"))
+
+        if raw:
+            d = datetime.strptime(raw[0], "%b %d, %I:%M %p")
+            # We don't get the year, so replace the year with the proper year
+            d = d.replace(datetime.now().year)
+
+        return d
+
 
 if __name__ == "__main__":
     # Test function

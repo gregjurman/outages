@@ -69,3 +69,4 @@ class Scraper(object):
 
 # Put Scraper libraries here
 from outages.scrapers.omni import OmniScraper # RGE/NYSEG
+from outages.scrapers.natgrid import NationalGridScraper # National Grid

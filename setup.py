@@ -44,7 +44,7 @@ if sys.version_info[:2] == (2,4):
 print install_requires
 
 setup(
-    name='rgeoutages',
+    name='outages',
     version='0.1',
     description='',
     author='',
@@ -57,17 +57,17 @@ setup(
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=testpkgs,
-    package_data={'rgeoutages': ['i18n/*/LC_MESSAGES/*.mo',
+    package_data={'outages': ['i18n/*/LC_MESSAGES/*.mo',
                                  'templates/*/*',
                                  'public/*/*']},
-    message_extractors={'rgeoutages': [
+    message_extractors={'outages': [
             ('**.py', 'python', None),
             ('templates/**.mako', 'mako', None),
             ('public/**', 'ignore', None)]},
 
     entry_points="""
     [paste.app_factory]
-    main = rgeoutages.config.middleware:make_app
+    main = outages.config.middleware:make_app
 
     [paste.app_install]
     main = pylons.util:PylonsInstaller

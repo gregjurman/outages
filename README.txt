@@ -1,12 +1,12 @@
-This file is for you to describe the rgeoutages application. Typically
+This file is for you to describe the outages application. Typically
 you would include information such as the information below:
 
 Installation and Setup
 ======================
 
-Install ``rgeoutages`` using the setup.py script::
+Install ``outages`` using the setup.py script::
 
-    $ cd rgeoutages
+    $ cd outages
     $ python setup.py install
 
 Create the project database for any model classes defined::

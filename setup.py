@@ -36,7 +36,8 @@ install_requires=[
     "tgscheduler",
     "BeautifulSoup",
     'sqlamp',
-    'lxml']
+    'lxml',
+    'tw2.dyntext']
 
 if sys.version_info[:2] == (2,4):
     testpkgs.extend(['hashlib', 'pysqlite'])

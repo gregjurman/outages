@@ -15,6 +15,8 @@ from tw2.polymaps.geojsonify import geojsonify
 
 from tw2.protovis.custom import SparkBar
 
+from tw2.dyntext import DynamicTextWidget
+
 __all__ = ['RootController']
 
 class RGEOutageChart(SparkBar):
@@ -70,15 +72,13 @@ class RootController(BaseController):
     def index(self):
         """Handle the front-page."""
         # Get num of outages
-        outage_count = Outage.query.count()
 
-        # Get affected customer count
-        affected_count = 0
-        for out in Outage.query.all():
-            affected_count = affected_count + out.affected_customers
-
-        return dict(outage_count=outage_count,
-            affected_count=affected_count,
+        return dict(outage_count=DynamicTextWidget(id='outage_count',
+                data_url='/stats/outage_count',
+                interval=60000),
+            affected_count=DynamicTextWidget(id='affected_count',
+                data_url='/stats/affected_count',
+                interval=60000),
             outage_map=RGEOutageMap(),
             outage_chart=RGEOutageChart())
 
@@ -99,3 +99,19 @@ class RootController(BaseController):
 
         return geojson.dumps(json)
 
+
+    @expose('json')
+    def stats(self, stat):
+        if stat == 'outage_count':
+            # active outage count
+            out_stat = Outage.query.count()
+
+        elif stat == 'affected_count':
+            # Get affected customer count
+            out_stat = 0
+            for out in Outage.query.all():
+                out_stat = out_stat + out.affected_customers
+        else:
+            return dict()
+
+        return dict(text=str(out_stat))

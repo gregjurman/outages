@@ -13,7 +13,7 @@
 </div>
 <div class="grid_5 prefix_1">
 	<div id="outage_stat" class="stats lfloat">
-		<span class="num">${outage_count}</span>
+		<span class="num">${outage_count.display() | n}</span>
 	</div>
 	<div id="outage_head_spark" class="lfloat head_spark stats">
 		<div id="outage_stats_head">
@@ -35,7 +35,7 @@
 		</div>
 	</div>
 	<div id="outage_stat" class="stats ifloat">
-		<span class="num">${affected_count}</span>
+		<span class="num">${affected_count.display() | n}</span>
 	</div>
 </div>
 

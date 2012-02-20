@@ -1,11 +1,11 @@
 <%inherit file="local:templates.master"/>
 
 <%def name="header()">
-<h1>RG&E - Service Outages</h1>
+<h1>Power Outages</h1>
 </%def>
 
 <%def name="title()">
-  RG&E Service Outages - Map
+  Power Outages - Map
 </%def>
 
 <div id="main" class="stats grid_10 prefix_1 suffix_1" role="main">

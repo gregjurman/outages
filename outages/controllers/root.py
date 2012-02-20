@@ -38,9 +38,9 @@ class RGEOutageMap(PollingPolyMap):
     layer_lifetime = 60100
     interact = True
     cloudmade_api_key = "1a1b06b230af4efdbb989ea99e9841af"
-    center_latlon = {'lat': 43.105556, 'lon' : -77.611389}
+    center_latlon = {'lat': 43.105556, 'lon' : -76.611389}
     css_class = "outage_map"
-    zoom = 10
+    zoom = 4
 
     data_url = "/outages.json"
     properties_callback = """function (_layer) {

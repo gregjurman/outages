@@ -41,7 +41,7 @@ class RGEOutageMap(PollingPolyMap):
     center_latlon = {'lat': 43.105556, 'lon' : -76.611389}
     css_class = "outage_map"
     zoom = 4
-
+    hash = True
     data_url = "/outages.json"
     properties_callback = """function (_layer) {
         _layer.on("load", org.polymaps.stylist().attr('class', function(d){return ""+d.properties.CLASS})

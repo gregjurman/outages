@@ -8,7 +8,7 @@ from sqlalchemy import and_
 
 import re
 
-from outages.scrapers import OmniScraper, Location
+from outages.scrapers import NationalGridScraper, OmniScraper, Location
 
 LOCATION_QUALIFIERS = {
     'state' : r'state',
@@ -16,12 +16,14 @@ LOCATION_QUALIFIERS = {
     'county' : r'county',
     'street': r'street'}
 
-LOCATION_CHAIN = ['street', 'town', 'state']
+LOCATION_CHAIN = ['town', 'state']
 
 
 def get_lat_long(raw):
     query_string = _q(raw)
     uri = "http://maps.googleapis.com/maps/api/geocode/json?address=%s&sensor=false" % query_string
+    print "Updating geo for '%s'" % raw
+
     obj = urllib2.urlopen(uri)
     json_data = json.load(obj)
     try:
@@ -47,8 +49,18 @@ def scrape_outages():
             #'start':'NYSEG.html'}
         ]
 
-    for omni_utility in omni_services:
-        scrape_omni_outages_url(omni_utility)
+    natgrid_services = [
+            {'key': 'natgrid',
+            'name': "Test National Grid",
+            'state': 'NY',
+            'base':'http://gregjurman.github.com/data_ny.xml'},
+        ]
+
+    #for omni_utility in omni_services:
+    #    scrape_omni_outages_url(omni_utility)
+
+    for natgrid_utility in natgrid_services:
+        scrape_natgrid_outages_url(natgrid_utility)
 
     update_geo_locations()
 
@@ -120,6 +132,45 @@ def scrape_omni_outages_url(service):
     outage_data.name = service['state']
     outage_data.location_level = 'state'
     
+    tot_custs = 0
+    for child in outage_data.locations:
+        if not outage_data.update_time:
+            outage_data.update_time = child.update_time
+        tot_custs = tot_custs + child.total_customers
+    
+    outage_data.total_customers = tot_custs
+
+    populate_database(outage_data, utility)
+
+def scrape_natgrid_outages_url(service):
+    #TODO: Pull this out to generic it
+    # Get the utility entry, else create one if it's missing
+    utility = None
+    utility_query = Utility.query.filter(Utility.key==service['key'])
+    if utility_query.count():
+        utility = utility_query.one()
+    else:
+        # Doesn't exist, add new utility
+        utility = Utility()
+        utility.key = service['key']
+        utility.name = service['name']
+        DBSession.add(utility)
+        DBSession.flush()
+
+
+    # Clear all outages
+    for o_obj in Outage.query.all():
+        if o_obj.utility is utility:
+            DBSession.delete(o_obj)
+
+    # Get data from NatGrid
+    scraper = NationalGridScraper()
+
+    outage_data = scraper.start(service['base'])
+
+    # First layer is always garbage   
+    outage_data = outage_data.locations[0]
+
     tot_custs = 0
     for child in outage_data.locations:
         if not outage_data.update_time:

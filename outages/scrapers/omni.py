@@ -8,6 +8,7 @@ from outages.scrapers import Scraper, Location, Outage
 
 class OmniScraper(Scraper):
     def scrape(self, url, parent=None):
+        print "Getting:", url
         soup = self.get_soup(url)
         table = self.extract_table(soup)
 
@@ -56,7 +57,11 @@ class OmniScraper(Scraper):
                 loc.name = cells[0].string
                 outage = Outage()
                 outage.affected_customers = out_customers
-                outage.proposed_end_time = datetime.strptime(cells[3].string, "%b %d, %Y %I:%M %p")
+                try:
+                    outage.proposed_end_time = datetime.strptime(cells[3].string, "%b %d, %Y %I:%M %p")
+                except:
+                    # no proposed time
+                    pass
 
                 loc.outage = outage
 

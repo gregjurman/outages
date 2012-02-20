@@ -108,9 +108,12 @@ class NationalGridScraper(Scraper):
         raw = soup.xpath(join(xpath, "etr", "text()"))
 
         if raw:
-            d = datetime.strptime(raw[0], "%b %d, %I:%M %p")
-            # We don't get the year, so replace the year with the proper year
-            d = d.replace(datetime.now().year)
+            try:
+                d = datetime.strptime(raw[0], "%b %d, %I:%M %p")
+                # We don't get the year, so replace the year with the proper year
+                d = d.replace(datetime.now().year)
+            except:
+                pass
 
         return d
 

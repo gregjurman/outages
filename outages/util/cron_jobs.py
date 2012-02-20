@@ -35,29 +35,28 @@ def get_lat_long(raw):
 
 def scrape_outages():
     omni_services = [
-            {'key': 'nyseg',
-            'name':'Test NYSEG',
-            'state' : 'NY',
-            'base':'http://gregjurman.github.com/NYSEG.html'},
             {'key': 'rge',
             'name':'Rochester Gas & Electric',
+            'state' : 'NY',
+            'base':'http://www3.rge.com/OutageReports/',
+            'start':'RGE.html'},
+
+            {'key': 'nyseg',
+            'name': 'New York State Electric & Gas',
             'state': 'NY',
-            'base':'http://gregjurman.github.com/RGE.html'},
-            #{'key': 'nyseg',
-            #'name': 'New York State Electric & Gas',
-            #'base': 'http://www3.nyseg.com/OutageReports/',
-            #'start':'NYSEG.html'}
+            'base': 'http://www3.nyseg.com/OutageReports/',
+            'start':'NYSEG.html'}
         ]
 
     natgrid_services = [
             {'key': 'natgrid',
-            'name': "Test National Grid",
+            'name': "National Grid (NY)",
             'state': 'NY',
-            'base':'http://gregjurman.github.com/data_ny.xml'},
+            'base':'https://www1.nationalgridus.com/StormCenterData/data/data_ny.xml'},
         ]
 
-    #for omni_utility in omni_services:
-    #    scrape_omni_outages_url(omni_utility)
+    for omni_utility in omni_services:
+        scrape_omni_outages_url(omni_utility)
 
     for natgrid_utility in natgrid_services:
         scrape_natgrid_outages_url(natgrid_utility)

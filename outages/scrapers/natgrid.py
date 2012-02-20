@@ -15,6 +15,7 @@ LOCATION_LEVELS = ['state', 'county', 'town']
 class NationalGridScraper(Scraper):
     update_time = None
     name_regex = re.compile(r'([\w\s\d]+)(?:\([\w]+\)){0,1}')
+    extranous_name_regex = re.compile(r'([\w\s]+) (?:Town|City|Village)$')
     etr = None
 
     def __init__(self):
@@ -73,7 +74,16 @@ class NationalGridScraper(Scraper):
 
     def get_area_name(self, soup, xpath):
         raw_name = soup.xpath(join(xpath, 'area_name', "text()"))[0]
-        return self.name_regex.match(raw_name).groups()[0].strip()
+        stripped_name = self.name_regex.match(raw_name).groups()[0].strip()
+        
+        # Need to strip the extranous Town, Village, City from the name though
+        res = self.extranous_name_regex.match(stripped_name)
+
+        if res:
+            return res.groups()[0].strip()
+        else:
+            return stripped_name
+
 
     def get_total_customers(self, soup, xpath):
         return int(soup.xpath(join(xpath, 'total_custs', 'text()'))[0].replace(',',''))

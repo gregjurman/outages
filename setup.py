@@ -35,7 +35,8 @@ install_requires=[
     "tw2.protovis.custom",
     "tgscheduler",
     "BeautifulSoup",
-    'sqlamp']
+    'sqlamp',
+    'lxml']
 
 if sys.version_info[:2] == (2,4):
     testpkgs.extend(['hashlib', 'pysqlite'])

@@ -344,6 +344,12 @@ svg {
   vector-effect: non-scaling-stroke;
 }
 
+.layer circle.natgrid {
+  fill: #00BFFF;
+  fill-opacity: .5;
+  stroke: #00FFFF;
+  vector-effect: non-scaling-stroke;
+}
 .stats .head {
     margin: 0 0;
     font-weight: bold;

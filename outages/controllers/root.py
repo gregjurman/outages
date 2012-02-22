@@ -89,9 +89,17 @@ class RootController(BaseController):
 
         features = []
         for outage in Outage.query.all():
-            if outage.location.lng is not None:
+            loc = outage.location
+            lat = None
+            lng = None
+            while loc is not None and lng is None and lat is None:
+                lat = loc.lat
+                lng = loc.lng
+                loc = loc.parent
+
+            if lng is not None:
                 features.append(geojson.Feature(
-                        geometry=geojson.Point([float(outage.location.lng), float(outage.location.lat)]),
+                        geometry=geojson.Point([float(lng), float(lat)]),
                         properties={'CLASS': str(outage.utility.key),
                             'ATTR': ", ".join(build_geo_chain(outage.location))}))
 

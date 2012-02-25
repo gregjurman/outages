@@ -15,7 +15,7 @@ from tw2.polymaps.geojsonify import geojsonify
 
 from tw2.protovis.custom import SparkBar
 
-from tw2.dyntext import DynamicTextWidget
+from tw2.dyntext import PollingDynamicTextWidget
 
 __all__ = ['RootController']
 
@@ -73,10 +73,10 @@ class RootController(BaseController):
         """Handle the front-page."""
         # Get num of outages
 
-        return dict(outage_count=DynamicTextWidget(id='outage_count',
+        return dict(outage_count=PollingDynamicTextWidget(id='outage_count',
                 data_url='/stats/outage_count',
                 interval=60000),
-            affected_count=DynamicTextWidget(id='affected_count',
+            affected_count=PollingDynamicTextWidget(id='affected_count',
                 data_url='/stats/affected_count',
                 interval=60000),
             outage_map=RGEOutageMap(),

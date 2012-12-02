@@ -4,104 +4,77 @@ from datetime import datetime
 from urlparse import urljoin
 import json
 
-from posixpath import join
+import pprint
+
+from posixpath import join, dirname
 
 from outages.scrapers import Scraper, Location, Outage
 
 import re
 
-LOCATION_LEVELS = ['state', 'county', 'town']
-
 class NationalGridScraper(Scraper):
-    update_time = None
-    name_regex = re.compile(r'([\w\s\d]+)(?:\([\w]+\)){0,1}')
-    extranous_name_regex = re.compile(r'([\w\s]+) (?:Town|City|Village)$')
-    etr = None
 
     def __init__(self):
         pass
 
     def scrape(self, url, parent=None):
-        soup = self.get_xml_soup(url)
+        """
+        Get the interval generation file and parse out the data directory.
+        Take the data directory and get the JSON file with the outage report.
 
-        root = soup.getroot()
+        url : URL for the main metadata file.asename
+        """
+        base_url = dirname(url)
+        metadata_soup = self.get_xml_soup(url)
+        meta_path = self.get_metadata_path(metadata_soup)
 
-        if not self.update_time:
-            self.update_time = self.get_update_time(root)
-            self.etr = self.get_etr(root, "//curr_custs_aff/areas/area")
+        report_url = join(base_url, meta_path, "report.js")
 
-        loc_tree = self.scrape_recurse(root, "//curr_custs_aff/areas/area", parent)
+        report_json = self.get_report_json(report_url)
 
+        return self.scrape_recurse(
+                report_json['file_data']['curr_custs_aff'], parent)
 
-    def scrape_recurse(self, soup, xpath, parent, level=0):
-        loc_name = self.get_area_name(soup, xpath)
-        loc_total_custs = self.get_total_customers(soup, xpath)
+    def scrape_recurse(self, data, parent=None):
+        me = Location()
+        if 'area_name' in data.keys():
+            me.name = data['area_name'].strip()
 
-        loc = Location()
-        loc.name = loc_name
-        loc.location_level = LOCATION_LEVELS[level]
-        loc.update_time = self.update_time
-        loc.total_customers = loc_total_custs
+        if 'total_custs' in data.keys():
+            custs = data['total_custs']
+            me.total_customers = custs
+
+        if 'custs_out' in data.keys():
+            out = data['custs_out']
+            etr = data['etrmillis']
+            if out > 0:
+                outage = Outage()
+                outage.affected_customers = out
+                if etr >= 0:
+                    outage.proposed_end_time = datetime.fromtimestamp(etr/1000.0)
+
+                me.outage = outage
+
+        if 'areas' in data.keys():
+            for area in data['areas']:
+                self.scrape_recurse(area, me)
 
         if parent:
-            parent.locations.append(loc)
+            parent.locations.append(me)
 
-        if len(soup.xpath(join(xpath, 'areas'))):
-            # This is a location with more children
-            for i in xrange(1, len(soup.xpath(join(xpath, 'areas', 'area'))) + 1):
-                self.scrape_recurse(soup, join(xpath, 'areas', 'area[%s]' % i),
-                    loc, level + 1)
-
-        else:
-            # This is a area that may have an outage
-            out_custs = self.get_out_customers(soup, xpath)
-            if out_custs:
-                outage = Outage()
-                outage.affected_customers = out_custs
-                etr = self.get_etr(soup, xpath)
-                if etr:
-                    outage.proposed_end_time = etr
-                else:
-                    outage.proposed_end_time = self.etr
-
-                loc.outage = outage
-
-        return loc
+    def get_report_json(self, url):
+        print url
+        c = urllib2.urlopen(url)
+        return json.loads(c.read())
 
     def get_xml_soup(self, url):
         c = urllib2.urlopen(url)
         return etree.parse(c)
 
-    def get_area_name(self, soup, xpath):
-        raw_name = soup.xpath(join(xpath, 'area_name', "text()"))[0]
-        stripped_name = self.name_regex.match(raw_name).groups()[0].strip()
-        
-        # Need to strip the extranous Town, Village, City from the name though
-        res = self.extranous_name_regex.match(stripped_name)
+    def get_metadata_path(self, metadata_soup):
+        raw = metadata_soup.xpath("//root/directory/text()")
+        return raw.pop()
 
-        if res:
-            return res.groups()[0].strip()
-        else:
-            return stripped_name
-
-
-    def get_total_customers(self, soup, xpath):
-        return int(soup.xpath(join(xpath, 'total_custs', 'text()'))[0].replace(',',''))
-
-    def get_out_customers(self, soup, xpath):
-        return int(soup.xpath(join(xpath, 'custs_out', 'text()'))[0].replace(',',''))
-
-    def get_update_time(self, soup):
-        raw_date = soup.xpath(join("/root/date_generated", "text()"))
-
-        if len(raw_date) is 1:
-            d = datetime.strptime(raw_date[0], "%b %d, %I:%M %p")
-            # We don't get the year, so replace the year with the proper year
-            d = d.replace(datetime.now().year)
-        else:
-            d = datetime.now()
-
-        return d
 
     def get_etr(self, soup, xpath):
         d = None
@@ -117,12 +90,11 @@ class NationalGridScraper(Scraper):
 
         return d
 
-
 if __name__ == "__main__":
     # Test function
     from outages.scrapers import JSONFuncEncoder
 
     ngs = NationalGridScraper()
-    objs = ngs.start('http://gregjurman.github.com/data_ny.xml')
+    objs = ngs.start('https://s3.amazonaws.com/stormcenter.nationalgridus.com/data/interval_generation_data/metadataNY.xml')
 
     print JSONFuncEncoder().encode(objs)

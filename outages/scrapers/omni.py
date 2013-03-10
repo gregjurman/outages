@@ -3,102 +3,170 @@ import urllib2
 from datetime import datetime
 from urlparse import urljoin
 import json
+from itertools import izip
 
-from outages.scrapers import Scraper, Location, Outage
+from outages.models import Location, Metric, MetricValue, MetricMetadata, DBSession
+from outages.scrapers import Scraper
+
+import transaction
 
 class OmniScraper(Scraper):
-    def scrape(self, url, parent=None):
-        print "Getting:", url
+    metrics = {
+            'affected' : 'Affected Customers',
+            'total' : 'Total Customers'
+            }
+
+    def geofix(self):
+        # Get all Locations that have missing town names
+        properties = list(reversed([None, 'town', None, 'county', 'stabbr']))
+        fixables = Location.query.filter(Location.utility == self.utility).filter(
+                Location.stabbr == "").all()
+
+        # For each record, fill in missing data
+        for loc in fixables:
+            print "Fixing '%s'" % loc.name
+            sections = reversed([x.strip() for x in loc.name.split(',')])
+            for section, prop in zip(sections, properties):
+                if prop:
+                    print "updating '%s': '%s' with %s" % (loc.name, prop, section)
+                    setattr(loc, str(prop), section)
+
+    def initialize_db(self):
+        for k,v in self.metrics.iteritems():
+            m = Metric.add_metric(k, v)
+        DBSession.flush()
+
+    def scrape(self):
+        base_url = self.config['base_url']
+        url = urljoin(base_url, self.config['start_file'])
+        state_abbr = self.config['state']
+
+        # Declare our commit time
+        self.commit_time = datetime.now()
+
+        # Start scraping, Always append the state suffix
+        self.scrape_recurse(url, state_abbr)
+
+    def scrape_recurse(self, url, suffix=""):
+        print "Getting URL: %s\n\twith suffix: %s" % (url, suffix)
+
         soup = self.get_soup(url)
-        table = self.extract_table(soup)
-
-        update_time, location_level = self.get_metadata(table)
-
-        if location_level is None:
+        location = self.get_metadata(soup)
+        data_rows = self.get_rows(soup)
+        if not data_rows:
             return
-    
-        first_data_row = None        
+
+        for row in data_rows:
+            name, total, out, found_page, end_time = self.extract_data(row)
+
+            # Set our location if needed
+            full_name = ", ".join([name, suffix])
+            l = Location.add_location(full_name, self.utility)
+
+            # log out customers
+            # XXX: DRY this out
+            mv_out = MetricValue()
+            mv_out.metric = Metric.get_metric('affected')
+            mv_out.location = l
+            mv_out.value = out
+            mv_out.datetime = self.commit_time
+            DBSession.add(mv_out)
+
+            if (end_time):
+                out_md = MetricMetadata()
+                out_md.metricvalue = mv_out
+                out_md.key = 'end_time'
+                out_md.value = end_time
+                DBSession.add(out_md)
+
+            # log total customers
+            mv_tot = MetricValue()
+            mv_tot.metric = Metric.get_metric('total')
+            mv_tot.location = l
+            mv_tot.value = total
+            mv_tot.datetime = self.commit_time
+            DBSession.add(mv_tot)
+
+            DBSession.flush()
+
+            # Take all found pages and recurse through them
+            if found_page:
+                new_page = urljoin(url, found_page)
+                self.scrape_recurse(new_page, full_name)
+
+    def get_soup(self, url):
+        # Open the URL and start the soup
+        data = urllib2.urlopen(url)
+        return BeautifulSoup(data)
+
+    def extract_table(self, soup):
+        # There should be one table
+        return soup.findAll('table', limit=1)[0]
+
+    def find_first_data_row(self, soup):
         # get all rows that have no attributes on them
+        # find the first row that has <td/> tags
+        table = self.extract_table(soup)
         for row in table.findAll(lambda tag : tag.name == 'tr' and not tag.attrs):
             if not row.findAll('td'):
                 continue
 
-            first_data_row = row
-            break
+            return row
 
-        # Get data-rows then prepend the first
-        rows = first_data_row.findNextSiblings('tr')
+    def get_rows(self, soup):
+        # Retrive all of the rows that contain data
+        first_data_row = self.find_first_data_row(soup)
+        try:
+            rows = first_data_row.findNextSiblings('tr')
+        except AttributeError:
+            return None
+
         rows.insert(0, first_data_row)
-        # The last row is junk we don't need
+
+        # The last row is always junk we don't need
         rows.pop()
+        return rows
 
-        locations = []
+    def extract_data(self, row):
+        # Extract all of the pertinent data
+        end_time = None
+        name = None
+        found_page = None
 
-        for row in rows:
-            loc = Location()
-            loc.update_time = update_time
-            loc.location_level = location_level
-            if parent:
-                parent.locations.append(loc)
+        cells = row.findAll('td')
 
-            cells = row.findAll('td')
+        total = int(cells[1].string.replace(',',''))
+        out = int(cells[2].string.replace(',',''))
 
-            loc.total_customers = int(cells[1].string.replace(',',''))
-            out_customers = int(cells[2].string.replace(',',''))
+        if cells[0].findAll('a'):
+            # Theres a link leading to more data, save it
+            child_url = cells[0].contents[0]['href']
+            name = cells[0].contents[0].contents[0].string
 
-            if cells[0].findAll('a'):
-                # Theres more data here, recurse
-                child_url = urljoin(url, cells[0].contents[0]['href'])
-                loc.name = cells[0].contents[0].contents[0].string
+            found_page = child_url
+        else:
+            # This is drilled-down as far as we can go, make an outage object
+            name = cells[0].string
+            try:
+                end_time = datetime.strptime(cells[3].string, "%b %d, %Y %I:%M %p")
+            except:
+                # no proposed time
+                pass
 
-                self.scrape(child_url, loc)
-            else:
-                # This is drilled-down as far as we can go, make an outage object
-                loc.name = cells[0].string
-                outage = Outage()
-                outage.affected_customers = out_customers
-                try:
-                    outage.proposed_end_time = datetime.strptime(cells[3].string, "%b %d, %Y %I:%M %p")
-                except:
-                    # no proposed time
-                    pass
+        return (name, total, out, found_page, end_time)
 
-                loc.outage = outage
-
-    def get_metadata(self, table):
-        # Start extracting data
-        update_time = self.get_update_time(table)
+    def get_metadata(self, soup):
+        # Get the basic metadata off the pace
+        table = self.extract_table(soup)
         location_level = self.get_location_level(table)
-        
-        return update_time, location_level
+        return location_level
 
 
-    def get_soup(self, url):
-        data = urllib2.urlopen(url)
-        return BeautifulSoup(data)
-
-
-    def extract_table(self, page_soup):
-        # There should be one table
-        return page_soup.findAll('table', limit=1)[0]
-
-
-    def get_update_time(self, table_soup):
-        # get the 'firstRow'
-        row = table_soup.findAll('tr', attrs={'class':'firstRow'}, limit=1)[0]
-
-        # Find the Update time cell
-        cell = row.findAll('td', attrs={'align': 'right'}, limit=1)[0]
-
-        # Parse out to datetime object
-        return datetime.strptime(cell.string, "Update: %b %d, %Y %I:%M %p")
-
-
-    def get_location_level(self, table_soup):
+    def get_location_level(self, table):
         first_data_row = None
-        
+
         # get all rows that have no attributes on them
-        for row in table_soup.findAll(lambda tag : tag.name == 'tr' and not tag.attrs):
+        for row in table.findAll(lambda tag : tag.name == 'tr' and not tag.attrs):
             if not row.findAll('td'):
                 continue
 
@@ -118,11 +186,3 @@ class OmniScraper(Scraper):
 
         return loc_level
 
-if __name__ == "__main__":
-    # Test function
-    from outages.scrapers import JSONFuncEncoder
-
-    ngs = OmniScraper('http://gregjurman.github.com')
-    objs = ngs.start('http://gregjurman.github.com/RGE.html')
-
-    print JSONFuncEncoder().encode(objs)

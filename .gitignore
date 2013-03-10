@@ -4,6 +4,7 @@
 *.pyo
 *.swo
 *.db*
+*.sqlite
 .build
 *.egg-info
 dist

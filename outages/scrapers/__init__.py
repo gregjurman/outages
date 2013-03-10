@@ -1,72 +1,45 @@
 import json
 
-class Outage(object):
-    affected_customers = None
-    proposed_end_time = None
+class ScraperMeta(type):
+    registered_scrapers = {}
 
-    def __init__(self):
-        pass
+    def __new__(mcs, name, bases, dct):
+        if name is "Scraper":
+            return type.__new__(mcs, name, bases, dct)
 
-    def __str__(self):
-        return "Outage: affected_customers=%s, proposed_end_time=%s" % (
-            self.affected_customers, self.proposed_end_time)
+        ins = type.__new__(mcs, name, bases, dct)
+        mcs.register(ins, name)
 
-    def __json__(self):
-        return dict(
-            affected_customers=self.affected_customers,
-            proposed_end_time=str(self.proposed_end_time))
+        return ins
 
-class Location(object):
-    location_level = None
-    locations = None
-    outage = None
-    update_time = None
-    total_customers = None
-    name = None
+    @classmethod
+    def register(mcs, cls, name):
+        print "Registering Scraper: %s" % name
+        mcs.registered_scrapers[name.lower()] = cls
 
-    def __init__(self):
-        self.locations = []
-        self.location_level = None
-
-    def __str__(self):
-        return "Location: name=%s, level=%s, outage=%s, total_children=%s, last_updated=%s" % (
-            self.name, self.location_level, self.outage, len(self.locations), self.update_time)
-
-    def __repr__(self):
-        return str(self)
-
-    def __json__(self):
-        me = dict(
-            name=self.name,
-            total_customers=self.total_customers,
-            update_time=str(self.update_time),
-            location_level=self.location_level)
-
-        if self.locations:
-            me['locations'] = self.locations
-        if self.outage:
-            me['outage'] = self.outage
-
-        return me
-
-class JSONFuncEncoder(json.JSONEncoder):
-    def default(self, obj):
-        return getattr(obj, '__json__', (lambda: json.JSONEncoder.default(self, obj)))()
+    @classmethod
+    def get_scraper_by_name(mcs, name):
+        return mcs.registered_scrapers[name.lower()]
 
 class Scraper(object):
-    def __init__(self, base_url):
-        self.base_url = base_url
+    __metaclass__ = ScraperMeta
 
-    def start(self, start_url):
-        root_loc = Location()
+    def __init__(self, utility=None, **config):
+        self.utility = utility
+        self.config = config
 
-        self.scrape(start_url, root_loc)
-
-        return root_loc
-
-    def scrape(self, url, parent=None):
+    def initialize_db(self):
         pass
+
+    def start(self):
+        print "Starting %s, %s" % (self.utility, self.config)
+        return self.scrape()
+
+    def scrape(self):
+        raise NotImplemented("scrape function not defined!")
+
+    def geofix(self):
+        raise NotImplemented("no geofix function defined")
 
 # Put Scraper libraries here
 from outages.scrapers.omni import OmniScraper # RGE/NYSEG
-from outages.scrapers.natgrid import NationalGridScraper # National Grid
